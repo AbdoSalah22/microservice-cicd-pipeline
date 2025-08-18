@@ -1,0 +1,22 @@
+# Node modules
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+
+# IDE files
+.vscode/
+.idea/
+
+# Ignore all JS and map files from TypeScript compilation
+*.js
+*.js.map
