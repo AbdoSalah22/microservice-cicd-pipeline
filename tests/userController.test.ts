@@ -20,7 +20,7 @@ describe('User Controller', () => {
   });
 
   it('should return 404 for non-existent user', () => {
-    const req = { params: { id: '999' } } as Request;
+    const req = { params: { id: '999' } } as unknown as Request;
     const res = mockResponse();
 
     getUser(req, res);
