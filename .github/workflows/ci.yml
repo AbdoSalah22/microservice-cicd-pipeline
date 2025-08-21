@@ -24,5 +24,10 @@ jobs:
       - name: Run ESLint
         run: npm run lint
 
+      - name: Run Snyk Code for static analysis
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
       - name: Finish Message
         run: echo "Static analysis completed successfully."
