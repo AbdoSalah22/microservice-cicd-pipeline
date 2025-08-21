@@ -25,7 +25,7 @@ jobs:
         run: npm run lint
 
       - name: Run Snyk Code for static analysis
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
