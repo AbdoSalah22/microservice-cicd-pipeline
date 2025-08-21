@@ -24,7 +24,7 @@ jobs:
       - name: Run Snyk for dependencies and code
         uses: snyk/actions/node@master
         with:
-          args: test
+          args: test src
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
