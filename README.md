@@ -1,4 +1,6 @@
-# User Microservice
+# Microservice CI/CD Pipeline
+
+(to be updated later)
 
 A small, critical microservice written in TypeScript using Node.js and Express.  
 It provides basic user management endpoints with in-memory storage.
