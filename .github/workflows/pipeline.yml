@@ -5,6 +5,7 @@ on:
     branches: [dev]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -102,7 +103,7 @@ jobs:
         run: docker push $IMAGE:${SHORT_SHA}
 
   finish-message:
-    if: github.event.pull_request.merged == true
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.merged == true)
     runs-on: ubuntu-latest
     steps:
       - name: Finish Message
