@@ -1,14 +1,51 @@
-name: CI/CD ipeline
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main]
-    tags: ['v*']
+    branches: [dev]
   pull_request:
+    types: [closed]
     branches: [main]
 
 jobs:
+  lint:
+    if: github.ref == 'refs/heads/dev' && !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+  test:
+    if: github.ref == 'refs/heads/dev' && !contains(github.event.head_commit.message, '[skip ci]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest tests
+        run: npm run test
+
   snyk-scan:
+    if: github.ref == 'refs/heads/dev' && !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -27,41 +64,8 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint
-
-  test:
-      runs-on: ubuntu-latest
-      steps:
-        - name: Checkout code
-          uses: actions/checkout@v4
-
-        - name: Set up Node.js
-          uses: actions/setup-node@v4
-          with:
-            node-version: '18'
-
-        - name: Install dependencies
-          run: npm ci
-
-        - name: Run Jest tests
-          run: npm run test
-
-  docker-build-and-push:
+  docker-build-scan-push:
+    if: github.ref == 'refs/heads/dev' && !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
     needs: [snyk-scan, lint, test]
     env:
@@ -79,27 +83,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Derive version + sha tags from Git ref
+      - name: Derive commit SHA tag
         id: vars
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          if [ -z "$VERSION" ]; then VERSION="latest"; fi
           SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
 
       - name: Build Docker image
-        run: docker build -t $IMAGE:${VERSION} -t $IMAGE:${SHORT_SHA} .
+        run: docker build -t $IMAGE:${SHORT_SHA} .
 
-      - name: Push version + sha tags
-        run: |
-          docker push $IMAGE:${VERSION}
-          docker push $IMAGE:${SHORT_SHA}
+      - name: Trivy scan Docker image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE }}:${{ env.SHORT_SHA }}
+          exit-code: '1'
+          severity: 'CRITICAL'
+
+      - name: Push Docker image
+        run: docker push $IMAGE:${SHORT_SHA}
 
   finish-message:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
-    needs: [snyk-scan, lint, test, docker-build-and-push]
-    if: success()
     steps:
       - name: Finish Message
-        run: echo "Pipeline finished successfully."
+        run: echo "Post-merge pipeline finished successfully."
