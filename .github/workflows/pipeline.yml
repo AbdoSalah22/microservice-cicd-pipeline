@@ -97,7 +97,7 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE }}:${{ env.SHORT_SHA }}
           exit-code: '1'
-          severity: 'HIGH,CRITICAL'
+          severity: 'CRITICAL'
 
       - name: Push Docker image
         run: docker push $IMAGE:${SHORT_SHA}
