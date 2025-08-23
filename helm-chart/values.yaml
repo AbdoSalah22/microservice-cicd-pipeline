@@ -5,10 +5,10 @@
 replicaCount: 1
 
 image:
-  repository: nginx
+  repository: abdosalah22/vois-explore-sre
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+  tag: "latest"
 
 imagePullSecrets: []
 nameOverride: ""
@@ -42,6 +42,7 @@ securityContext: {}
 service:
   type: ClusterIP
   port: 80
+  targetPort: 3000
 
 ingress:
   enabled: false
