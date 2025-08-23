@@ -205,7 +205,7 @@ jobs:
         run: |
           
           # Start Minikube cluster
-          minikube start --driver=docker --memory=2048 --cpus=1
+          minikube start --driver=docker --memory=4096 --cpus=2
           kubectl wait --for=condition=Ready nodes --all --timeout=300s
           kubectl config use-context minikube
           
