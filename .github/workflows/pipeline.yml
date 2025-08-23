@@ -67,7 +67,7 @@ jobs:
   docker-build-scan-push:
     if: github.ref == 'refs/heads/dev' && !contains(github.event.head_commit.message, '[skip ci]')
     runs-on: ubuntu-latest
-    needs: [snyk-scan, lint, ci-testtest]
+    needs: [snyk-scan, lint, ci-test]
     env:
       IMAGE: abdosalah22/vois-explore-sre
     steps:
@@ -168,3 +168,81 @@ jobs:
           docker build -t $IMAGE:${VERSION} -t $IMAGE:latest .
           docker push $IMAGE:${VERSION}
           docker push $IMAGE:latest
+
+  helm-deploy-to-minikube:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    needs: [semantic-release]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.14.0'
+
+      - name: Update Helm chart values
+        run: |
+          VERSION=${{ needs.semantic-release.outputs.version }}
+          IMAGE_TAG=${VERSION#v}
+          
+          # Update values.yaml with new image tag
+          sed -i "s/tag:.*/tag: \"${IMAGE_TAG}\"/" helm-chart/values.yaml
+
+      - name: Install Minikube
+        run: |
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          minikube version
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Deploy to Minikube
+        run: |
+          
+          # Start Minikube cluster
+          minikube start --driver=docker --memory=2048 --cpus=1
+          kubectl wait --for=condition=Ready nodes --all --timeout=300s
+          kubectl config use-context minikube
+          
+          # Verify cluster is running
+          kubectl cluster-info
+          kubectl get nodes
+          
+          # Load Docker image into Minikube
+          VERSION=${{ needs.semantic-release.outputs.version }}
+          IMAGE_TAG=${VERSION#v}
+          echo "Loading image: abdosalah22/vois-explore-sre:${IMAGE_TAG}"
+          minikube image load abdosalah22/vois-explore-sre:${IMAGE_TAG}
+          
+          # Deploy using Helm
+          helm upgrade --install vois-explore ./helm-chart \
+            --namespace default \
+            --create-namespace \
+            --wait \
+            --timeout 5m \
+            --set image.tag=${IMAGE_TAG}
+          
+          # Verify deployment
+          kubectl get pods -l app.kubernetes.io/name=vois-explore
+          kubectl get services -l app.kubernetes.io/name=vois-explore
+
+          # Wait for pods to be ready
+          kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=vois-explore --timeout=300s
+
+          # Show deployment status
+          kubectl describe deployment vois-explore
+
+          echo "Minikube deployment completed successfully!"
+
+  finish-message:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    needs: [helm-deploy-to-minikube]
+    steps:
+      - name: Finish Message
+        run: echo "Post-merge pipeline finished successfully. Application deployed!"
