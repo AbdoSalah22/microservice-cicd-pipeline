@@ -165,8 +165,8 @@ jobs:
       - name: Build and push Docker image with version tag
         run: |
           VERSION=$(git describe --tags --abbrev=0)
-          docker build -t $IMAGE:${VERSION} -t $IMAGE:latest .
-          docker push $IMAGE:${VERSION}
+          docker build -t $IMAGE:${VERSION#v} -t $IMAGE:latest .
+          docker push $IMAGE:${VERSION#v}
           docker push $IMAGE:latest
 
   helm-deploy-to-minikube:
@@ -205,7 +205,7 @@ jobs:
         run: |
           
           # Start Minikube cluster
-          minikube start --driver=docker --memory=2048 --cpus=1
+          minikube start --driver=docker --memory=4096 --cpus=2
           kubectl wait --for=condition=Ready nodes --all --timeout=300s
           kubectl config use-context minikube
           
