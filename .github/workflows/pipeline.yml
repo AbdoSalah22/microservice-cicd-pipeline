@@ -218,20 +218,19 @@ jobs:
           echo "Loading image: abdosalah22/vois-explore-sre:${IMAGE_TAG}"
           minikube image load abdosalah22/vois-explore-sre:${IMAGE_TAG}
           
-          # Deploy using Helm
-          helm upgrade --install vois-explore ./helm-chart \
-            --namespace default \
-            --create-namespace \
-            --wait \
-            --timeout 10m \
-            --set image.tag=${IMAGE_TAG}
+          # Use helm template + kubectl apply instead of helm install
+          helm template vois-explore ./helm-chart \
+            --set image.tag=${IMAGE_TAG} \
+            --namespace default > deployment.yaml
           
+          kubectl apply -f deployment.yaml
+          
+          # Wait for deployment to be ready
+          kubectl wait --for=condition=Available deployment/vois-explore --timeout=300s
+
           # Verify deployment
           kubectl get pods -l app.kubernetes.io/name=vois-explore
-          kubectl get services -l app.kubernetes.io/name=vois-explore
-
-          # Wait for pods to be ready
-          kubectl wait --for=condition=Ready pods -l app.kubernetes.io/name=vois-explore --timeout=300s
+          kubectl get services
 
           # Show deployment status
           kubectl describe deployment vois-explore
