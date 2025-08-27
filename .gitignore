@@ -20,3 +20,7 @@ dist/
 # Ignore all JS and map files from TypeScript compilation
 *.js
 *.js.map
+
+minikube-linux-amd64
+
+deployment.yaml
