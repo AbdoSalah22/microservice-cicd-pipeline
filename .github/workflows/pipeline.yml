@@ -181,14 +181,6 @@ jobs:
         with:
           version: '3.14.0'
 
-      - name: Update Helm chart values
-        run: |
-          VERSION=${{ needs.semantic-release.outputs.version }}
-          IMAGE_TAG=${VERSION#v}
-          
-          # Update values.yaml with new image tag
-          sed -i "s/tag:.*/tag: \"${IMAGE_TAG}\"/" helm-chart/values.yaml
-
       - name: Install Minikube
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
@@ -212,29 +204,50 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
           
-          # Load Docker image into Minikube
+          # Get version from semantic-release
           VERSION=${{ needs.semantic-release.outputs.version }}
           IMAGE_TAG=${VERSION#v}
-          echo "Loading image: abdosalah22/vois-explore-sre:${IMAGE_TAG}"
-          minikube image load abdosalah22/vois-explore-sre:${IMAGE_TAG}
+          IMAGE=abdosalah22/vois-explore-sre
+          
+          # Verify Docker image exists
+          if ! docker pull ${IMAGE}:${IMAGE_TAG}; then
+            echo "Error: Docker image ${IMAGE}:${IMAGE_TAG} not found"
+            exit 1
+          fi
+
+          # Load Docker image into Minikube
+          echo "Loading image: ${IMAGE}:${IMAGE_TAG}"
+          minikube image load ${IMAGE}:${IMAGE_TAG}
+
+          # Verify image is loaded
+          minikube image ls | grep vois-explore || echo "Image not found in minikube"
           
           # Use helm template + kubectl apply instead of helm install
           helm template vois-explore ./helm-chart \
             --set image.tag=${IMAGE_TAG} \
             --namespace default > deployment.yaml
           
+          # Show what will be deployed
+          echo "Generated Kubernetes manifests:"
+          cat deployment.yaml
           kubectl apply -f deployment.yaml
           
           # Wait for deployment to be ready
           kubectl wait --for=condition=Available deployment/vois-explore --timeout=300s
 
+          # Wait for deployment with better error handling
+          if ! kubectl wait --for=condition=Available deployment/vois-explore --timeout=300s; then
+            echo "Deployment failed. Debugging..."
+            kubectl get pods -l app.kubernetes.io/name=vois-explore
+            kubectl describe pods -l app.kubernetes.io/name=vois-explore
+            kubectl get events --sort-by=.metadata.creationTimestamp
+            exit 1
+          fi
+          
           # Verify deployment
           kubectl get pods -l app.kubernetes.io/name=vois-explore
           kubectl get services
-
-          # Show deployment status
-          kubectl describe deployment vois-explore
-
+          
           echo "Minikube deployment completed successfully!"
 
   finish-message:
