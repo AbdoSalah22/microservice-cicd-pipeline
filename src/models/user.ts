@@ -1,6 +1,4 @@
 export interface User {
-  id: string;
+  id: number;
   name: string;
 }
-
-export const users: Record<string, User> = {};
