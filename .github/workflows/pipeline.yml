@@ -222,15 +222,13 @@ jobs:
           # Verify image is loaded
           minikube image ls | grep vois-explore || echo "Image not found in minikube"
           
-          # Use helm template + kubectl apply instead of helm install
-          helm template vois-explore ./helm-chart \
-            --set image.tag=${IMAGE_TAG} \
-            --namespace default > deployment.yaml
+          # Deploy using helm upgrade --install
+          helm upgrade --install vois-explore ./helm-chart \
+          --set image.tag=${IMAGE_TAG} \
+          --namespace default
           
-          # Show what will be deployed
-          echo "Generated Kubernetes manifests:"
-          cat deployment.yaml
-          kubectl apply -f deployment.yaml
+          # Show what is deployed
+          helm get manifest vois-explore --namespace default
           
           # Wait for deployment to be ready
           kubectl wait --for=condition=Available deployment/vois-explore --timeout=300s
