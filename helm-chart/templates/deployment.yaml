@@ -14,7 +14,6 @@ spec:
       labels:
         {{- include "vois-explore.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "vois-explore.name" . }}
       containers:
         - name: {{ include "vois-explore.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
