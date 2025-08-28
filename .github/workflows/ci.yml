@@ -41,7 +41,7 @@ jobs:
   docker-build-scan-push:
     if: !contains(github.event.pull_request.title, '[skip ci]')
     runs-on: ubuntu-latest
-    needs: [snyk-scan, lint, ci-test]
+    needs: [code-check]
     env:
       IMAGE: abdosalah22/vois-explore-sre
     steps:
