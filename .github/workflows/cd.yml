@@ -1,109 +1,11 @@
-name: CI/CD Pipeline
+name: CD (Post-merge)
 
 on:
-  pull_request:
-    branches: [main]
   push:
     branches: [main]
 
 jobs:
-  lint:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.title, '[skip ci]')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.8.1'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run ESLint
-        run: npm run lint
-
-  ci-test:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.title, '[skip ci]')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.8.1'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Jest tests
-        run: npm run test
-
-  snyk-scan:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.title, '[skip ci]')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.8.1'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Snyk for dependencies and code
-        uses: snyk/actions/node@master
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-  docker-build-scan-push:
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.title, '[skip ci]')
-    runs-on: ubuntu-latest
-    needs: [snyk-scan, lint, ci-test]
-    env:
-      IMAGE: abdosalah22/vois-explore-sre
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Derive commit SHA tag
-        id: vars
-        run: |
-          SHORT_SHA="$(echo "${GITHUB_SHA}" | cut -c1-7)"
-          echo "SHORT_SHA=$SHORT_SHA" >> $GITHUB_ENV
-
-      - name: Build Docker image
-        run: docker build -t $IMAGE:${SHORT_SHA} .
-
-      - name: Trivy scan Docker image
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE }}:${{ env.SHORT_SHA }}
-          exit-code: '1'
-          severity: 'CRITICAL'
-
-      - name: Push Docker image
-        run: docker push $IMAGE:${SHORT_SHA}
-
-  # Post-merge pipeline jobs
   cd-test:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -121,7 +23,6 @@ jobs:
         run: npm run test
 
   semantic-release:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [cd-test]
     env:
@@ -169,7 +70,6 @@ jobs:
           docker push $IMAGE:latest
 
   helm-deploy-to-minikube:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [semantic-release]
     steps:
@@ -222,15 +122,13 @@ jobs:
           # Verify image is loaded
           minikube image ls | grep vois-explore || echo "Image not found in minikube"
           
-          # Use helm template + kubectl apply instead of helm install
-          helm template vois-explore ./helm-chart \
-            --set image.tag=${IMAGE_TAG} \
-            --namespace default > deployment.yaml
+          # Deploy using helm upgrade --install
+          helm upgrade --install vois-explore ./helm-chart \
+          --set image.tag=${IMAGE_TAG} \
+          --namespace default
           
-          # Show what will be deployed
-          echo "Generated Kubernetes manifests:"
-          cat deployment.yaml
-          kubectl apply -f deployment.yaml
+          # Show what is deployed
+          helm get manifest vois-explore --namespace default
           
           # Wait for deployment to be ready
           kubectl wait --for=condition=Available deployment/vois-explore --timeout=300s

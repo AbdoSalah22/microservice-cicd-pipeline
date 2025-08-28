@@ -18,7 +18,7 @@ dist/
 .idea/
 
 # Ignore all JS and map files from TypeScript compilation
-*.js
+*test.js
 *.js.map
 
 minikube-linux-amd64
