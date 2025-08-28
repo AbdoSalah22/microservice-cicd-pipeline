@@ -5,9 +5,13 @@ on:
     branches: [main]
 
 jobs:
-  lint:
+  code-check:
     if: !contains(github.event.pull_request.title, '[skip ci]')
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        check: [lint, test, scan]
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -20,43 +24,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run ESLint
+      - name: Run Lint
+        if: matrix.check == 'lint'
         run: npm run lint
 
-  ci-test:
-    if: !contains(github.event.pull_request.title, '[skip ci]')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.8.1'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Jest tests
+      - name: Run Tests
+        if: matrix.check == 'test'
         run: npm run test
 
-  snyk-scan:
-    if: !contains(github.event.pull_request.title, '[skip ci]')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20.8.1'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Snyk for dependencies and code
+      - name: Run Snyk Security Scan
+        if: matrix.check == 'scan'
         uses: snyk/actions/node@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
