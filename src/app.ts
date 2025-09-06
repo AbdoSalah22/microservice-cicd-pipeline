@@ -6,15 +6,16 @@ const app = express();
 app.use(express.json());
 
 // Serve static files from public directory
-app.use(express.static(path.join(__dirname, '../public')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // API routes
 app.use('/users', userRoutes);
 
 // Serve index.html for root path
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

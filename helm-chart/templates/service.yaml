@@ -11,5 +11,6 @@ spec:
       targetPort: {{ .Values.service.targetPort }}
       protocol: TCP
       name: http
+      nodePort: {{ .Values.service.nodePort }}
   selector:
     {{- include "vois-explore.selectorLabels" . | nindent 4 }}

@@ -8,8 +8,12 @@ RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
+COPY public ./public
 
 RUN npm run build
+
+# Copy static files to dist
+RUN cp -r public dist/public
 
 # Stage 2: Production
 FROM node:20.8.1-alpine AS production
